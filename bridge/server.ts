@@ -1,14 +1,15 @@
 #!/usr/bin/env npx ts-node
 
 import { exec } from 'child_process'
-import { existsSync } from 'fs'
+import { existsSync, statSync } from 'fs'
+import { readFile } from 'fs/promises'
 import * as path from 'path'
 import { WebSocketServer } from 'ws'
 
 const PORT = 8080
 const AUTH_TOKEN = 'palace_secret_123'
 
-type CommandType = 'LAUNCH' | 'PULSE' | 'TERMINAL'
+type CommandType = 'LAUNCH' | 'PULSE' | 'TERMINAL' | 'READ_README'
 
 type CockpitRequest = {
   id: string
@@ -76,6 +77,34 @@ async function handle(req: CockpitRequest): Promise<CockpitResponse> {
     if (req.type === 'TERMINAL') {
       await execAsync(`open -a Terminal "${req.path}"`)
       return { id: req.id, ok: true, data: { message: 'Opened Terminal' } }
+    }
+
+    if (req.type === 'READ_README') {
+      const readmePath = path.join(req.path, 'README.md')
+      if (!existsSync(readmePath)) {
+        return { id: req.id, ok: false, error: 'README.md not found' }
+      }
+
+      const raw = await readFile(readmePath, 'utf8')
+      const words = raw
+        .replace(/\s+/g, ' ')
+        .trim()
+        .split(' ')
+        .filter(Boolean)
+
+      const snippet = words.slice(0, 500).join(' ')
+      const mtimeMs = statSync(readmePath).mtimeMs
+
+      return {
+        id: req.id,
+        ok: true,
+        data: {
+          readmePath,
+          mtimeMs,
+          wordCount: words.length,
+          snippet,
+        },
+      }
     }
 
     return { id: req.id, ok: false, error: 'Unknown command' }

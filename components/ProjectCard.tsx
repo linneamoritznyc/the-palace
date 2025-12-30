@@ -7,10 +7,14 @@ import { useCockpit } from '@/hooks/useCockpit'
 
 type ProjectCardProps = {
   project: LocalProject
+  analysis?: {
+    executiveSummary: string
+    primaryTechStack: string
+  }
   onClick?: () => void
 }
 
-export function ProjectCard({ project, onClick }: ProjectCardProps) {
+export function ProjectCard({ project, analysis, onClick }: ProjectCardProps) {
   const mistOpacity = getMistOpacity(project.lastModified)
   const isActive = mistOpacity < 0.3
 
@@ -101,12 +105,24 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
       <div className="flex items-start gap-4">
         <div className="text-3xl">{typeIcons[project.projectType]}</div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-white truncate">
-            {project.projectName}
-          </h3>
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-lg font-semibold text-white truncate">
+              {project.projectName}
+            </h3>
+            {analysis?.primaryTechStack && (
+              <span className="shrink-0 text-[10px] px-2 py-1 rounded-full border border-white/10 bg-white/[0.04] text-white/70">
+                {analysis.primaryTechStack}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-white/40 truncate mt-1 font-mono">
             {project.absolutePath}
           </p>
+          {analysis?.executiveSummary && (
+            <p className="text-xs text-white/60 mt-2 line-clamp-2">
+              {analysis.executiveSummary}
+            </p>
+          )}
           <div className="flex items-center gap-3 mt-2">
             <span className="text-xs text-white/40">{timeSince()}</span>
             {project.hasGit && (

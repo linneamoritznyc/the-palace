@@ -2,4 +2,5 @@ node_modules
 .windsurf/
 .next
 .env*.local
+.palace/
 .vercel

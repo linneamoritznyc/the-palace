@@ -12,6 +12,7 @@ export default function Palace() {
   const [projects, setProjects] = useState<Project[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [localProjects, setLocalProjects] = useState<LocalProject[]>([])
+  const [localAnalysis, setLocalAnalysis] = useState<Record<string, { executiveSummary: string; primaryTechStack: string }>>({})
   const [time, setTime] = useState('')
   const [selectedTask, setSelectedTask] = useState('')
   const [spinning, setSpinning] = useState(false)
@@ -21,6 +22,7 @@ export default function Palace() {
   useEffect(() => {
     loadData()
     loadLocalProjects()
+    loadLocalAnalysis()
     updateTime()
     const interval = setInterval(updateTime, 60000)
     return () => clearInterval(interval)
@@ -49,6 +51,29 @@ export default function Palace() {
       if (data.projects) setLocalProjects(data.projects)
     } catch (err) {
       console.error('Failed to load local projects:', err)
+    }
+  }
+
+  async function loadLocalAnalysis() {
+    try {
+      const res = await fetch('/api/local/analyze')
+      const data = await res.json()
+      const map: Record<string, { executiveSummary: string; primaryTechStack: string }> = {}
+
+      if (data?.projects && Array.isArray(data.projects)) {
+        for (const p of data.projects) {
+          if (p?.projectId) {
+            map[p.projectId] = {
+              executiveSummary: String(p.executiveSummary || ''),
+              primaryTechStack: String(p.primaryTechStack || ''),
+            }
+          }
+        }
+      }
+
+      setLocalAnalysis(map)
+    } catch {
+      setLocalAnalysis({})
     }
   }
 
@@ -91,7 +116,7 @@ export default function Palace() {
         <p className="text-white/50 mb-8">Virtual Linkage to ~/Desktop projects</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {localProjects.map(p => (
-            <ProjectCard key={p.id} project={p} />
+            <ProjectCard key={p.id} project={p} analysis={localAnalysis[p.id]} />
           ))}
         </div>
       </div>
