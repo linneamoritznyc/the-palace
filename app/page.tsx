@@ -13,6 +13,7 @@ export default function Palace() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [localProjects, setLocalProjects] = useState<LocalProject[]>([])
   const [localAnalysis, setLocalAnalysis] = useState<Record<string, { executiveSummary: string; primaryTechStack: string }>>({})
+  const [paintings, setPaintings] = useState<Array<{ id: number; title: string; priceSEK: number; image: string | null; isSold: boolean }>>([])
   const [time, setTime] = useState('')
   const [selectedTask, setSelectedTask] = useState('')
   const [spinning, setSpinning] = useState(false)
@@ -23,6 +24,7 @@ export default function Palace() {
     loadData()
     loadLocalProjects()
     loadLocalAnalysis()
+    loadPaintings()
     updateTime()
     const interval = setInterval(updateTime, 60000)
     return () => clearInterval(interval)
@@ -31,6 +33,18 @@ export default function Palace() {
   function updateTime() {
     const now = new Date()
     setTime(now.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }))
+  }
+
+  async function loadPaintings() {
+    try {
+      const res = await fetch('/api/shopify/paintings')
+      const data = await res.json()
+      if (data?.paintings && Array.isArray(data.paintings)) {
+        setPaintings(data.paintings)
+      }
+    } catch {
+      setPaintings([])
+    }
   }
 
   async function loadData() {
@@ -149,6 +163,38 @@ export default function Palace() {
       </header>
 
       <div className="max-w-7xl mx-auto">
+        {paintings.length > 0 && (
+          <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-8 mb-8">
+            <div className="flex items-end justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-semibold text-white">Featured Works</h2>
+                <p className="text-white/50 text-sm mt-1">Art Gallery — Shopify originals (price ≥ 1000 SEK)</p>
+              </div>
+              <span className="text-xs text-white/40">{paintings.length} works</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {paintings.map(p => (
+                <div key={p.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+                  {p.image && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.image} alt={p.title} className="w-full h-56 object-cover" />
+                  )}
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-white font-semibold leading-tight">{p.title}</h3>
+                      {p.isSold && (
+                        <span className="text-[10px] px-2 py-1 rounded-full border border-red-500/30 bg-red-500/10 text-red-200">SOLD</span>
+                      )}
+                    </div>
+                    <div className="text-sm text-[#d4af37] mt-2">{Math.round(p.priceSEK).toLocaleString('sv-SE')} SEK</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-3xl p-8 mb-8">
           <div className="text-5xl text-white text-center mb-8">{time}</div>
           

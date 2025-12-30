@@ -9,7 +9,7 @@ import { WebSocketServer } from 'ws'
 const PORT = 8080
 const AUTH_TOKEN = 'palace_secret_123'
 
-type CommandType = 'LAUNCH' | 'PULSE' | 'TERMINAL' | 'READ_README'
+type CommandType = 'LAUNCH' | 'PULSE' | 'TERMINAL' | 'READ_README' | 'DETECT_PORT'
 
 type CockpitRequest = {
   id: string
@@ -105,6 +105,66 @@ async function handle(req: CockpitRequest): Promise<CockpitResponse> {
           snippet,
         },
       }
+    }
+
+    if (req.type === 'DETECT_PORT') {
+      const pkgPath = path.join(req.path, 'package.json')
+      if (!existsSync(pkgPath)) {
+        return { id: req.id, ok: true, data: { port: 3001, reason: 'no package.json' } }
+      }
+
+      const raw = await readFile(pkgPath, 'utf8')
+      let pkg: any
+      try {
+        pkg = JSON.parse(raw)
+      } catch {
+        return { id: req.id, ok: true, data: { port: 3001, reason: 'invalid package.json' } }
+      }
+
+      const scripts = pkg?.scripts || {}
+      const haystack = [scripts.dev, scripts.start, scripts.serve, scripts.preview]
+        .filter(Boolean)
+        .join(' ')
+
+      // Heuristics: look for explicit port flags or localhost URLs.
+      const patterns: Array<{ re: RegExp; hint: string }> = [
+        { re: /localhost:(\d{2,5})/i, hint: 'localhost:url' },
+        { re: /--port\s+(\d{2,5})/i, hint: '--port' },
+        { re: /--port=(\d{2,5})/i, hint: '--port=' },
+        { re: /-p\s+(\d{2,5})/i, hint: '-p' },
+        { re: /:?(\d{4,5})/i, hint: 'bare-number' },
+      ]
+
+      let port: number | null = null
+      let reason = 'default'
+
+      for (const ptn of patterns) {
+        const m = haystack.match(ptn.re)
+        if (m?.[1]) {
+          const n = Number(m[1])
+          if (Number.isFinite(n) && n >= 1 && n <= 65535) {
+            port = n
+            reason = ptn.hint
+            break
+          }
+        }
+      }
+
+      // Common defaults by tooling when no explicit flag.
+      if (!port) {
+        if (/\b(vite|vitest)\b/i.test(haystack)) {
+          port = 5173
+          reason = 'vite-default'
+        } else if (/\b(next)\b/i.test(haystack)) {
+          port = 3000
+          reason = 'next-default'
+        } else {
+          port = 3001
+          reason = 'fallback'
+        }
+      }
+
+      return { id: req.id, ok: true, data: { port, reason } }
     }
 
     return { id: req.id, ok: false, error: 'Unknown command' }

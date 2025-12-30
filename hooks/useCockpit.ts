@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-type CommandType = 'LAUNCH' | 'PULSE' | 'TERMINAL'
+type CommandType = 'LAUNCH' | 'PULSE' | 'TERMINAL' | 'DETECT_PORT'
 
 type CockpitRequest = {
   id: string

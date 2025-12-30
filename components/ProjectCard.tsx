@@ -30,16 +30,7 @@ export function ProjectCard({ project, analysis, onClick }: ProjectCardProps) {
     unknown: '❓',
   }
 
-  const timeSince = () => {
-    const now = Date.now() / 1000
-    const diff = now - project.lastModified
-    const days = Math.floor(diff / (24 * 60 * 60))
-    if (days === 0) return 'Today'
-    if (days === 1) return 'Yesterday'
-    if (days < 7) return `${days} days ago`
-    if (days < 30) return `${Math.floor(days / 7)} weeks ago`
-    return `${Math.floor(days / 30)} months ago`
-  }
+  
 
   const handleLaunch = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -83,6 +74,22 @@ export function ProjectCard({ project, analysis, onClick }: ProjectCardProps) {
     setTimeout(() => setActionStatus(null), 2000)
   }
 
+  const handleOpenBrowser = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setActionStatus('Opening browser...')
+    try {
+      const res = await sendCommand('DETECT_PORT', project.absolutePath)
+      const data = res.data as { port?: number } | undefined
+      const port = Number(data?.port || 3001)
+      window.open(`http://localhost:${port}`, '_blank', 'noopener,noreferrer')
+      setActionStatus(`Opened :${port}`)
+    } catch {
+      window.open('http://localhost:3001', '_blank', 'noopener,noreferrer')
+      setActionStatus('Opened :3001')
+    }
+    setTimeout(() => setActionStatus(null), 2000)
+  }
+
   return (
     <motion.div
       onClick={onClick}
@@ -119,25 +126,21 @@ export function ProjectCard({ project, analysis, onClick }: ProjectCardProps) {
             {project.absolutePath}
           </p>
           {analysis?.executiveSummary && (
-            <p className="text-xs text-white/60 mt-2 line-clamp-2">
-              {analysis.executiveSummary}
-            </p>
+            <div className="mt-2">
+              <div className="text-[10px] uppercase tracking-wider text-white/30">Vision Summary</div>
+              <p className="text-xs text-white/60 mt-1 line-clamp-3">
+                {analysis.executiveSummary}
+              </p>
+            </div>
           )}
-          <div className="flex items-center gap-3 mt-2">
-            <span className="text-xs text-white/40">{timeSince()}</span>
-            {project.hasGit && (
-              <span className="text-xs text-[#d4af37]/60 flex items-center gap-1">
-                <GitIcon /> Git
-              </span>
-            )}
-          </div>
         </div>
       </div>
 
-      <div className="flex gap-2 mt-4 pt-4 border-t border-white/5">
+      <div className="flex gap-2 mt-4 pt-4 border-t border-white/5 flex-wrap">
         <ActionButton onClick={handleLaunch} icon="🚀" label="Launch" color="emerald" />
         <ActionButton onClick={handlePulse} icon="💓" label="Pulse" color="cyan" />
         <ActionButton onClick={handleTerminal} icon="🐚" label="Terminal" color="purple" />
+        <ActionButton onClick={handleOpenBrowser} icon="🌐" label="Open Browser" color="gold" />
       </div>
 
       {/* Status toast */}
@@ -184,6 +187,7 @@ function ActionButton({ onClick, icon, label, color }: { onClick: (e: React.Mous
     emerald: 'hover:bg-emerald-500/20 hover:border-emerald-500/40 hover:text-emerald-400',
     cyan: 'hover:bg-cyan-500/20 hover:border-cyan-500/40 hover:text-cyan-400',
     purple: 'hover:bg-purple-500/20 hover:border-purple-500/40 hover:text-purple-400',
+    gold: 'hover:bg-[#d4af37]/15 hover:border-[#d4af37]/40 hover:text-[#d4af37]',
   }
   
   return (
@@ -196,13 +200,5 @@ function ActionButton({ onClick, icon, label, color }: { onClick: (e: React.Mous
       <span className="text-sm">{icon}</span>
       {label}
     </button>
-  )
-}
-
-function GitIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-    </svg>
   )
 }
