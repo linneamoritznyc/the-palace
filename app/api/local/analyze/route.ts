@@ -101,6 +101,10 @@ async function listDocxFilesRecursive(rootDir: string, limit: number): Promise<s
 function getVibeDocsFolderForProject(projectId: string, projectName: string): string | null {
   const key = `${projectId} ${projectName}`.toLowerCase()
 
+  if (projectId.toLowerCase() === 'curatorialframework' || key.includes('curatorialframework')) {
+    return path.join(VIBE_DOCS_ROOT, 'ART VIBE CODING', 'Curatorial Framework Analysis Coefficient')
+  }
+
   if (key.includes('nordiqflow')) {
     return path.join(VIBE_DOCS_ROOT, 'NORDIQFLOW')
   }
