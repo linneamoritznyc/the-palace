@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "bridge": "npx ts-node bridge/server.ts",
+    "bridge:install": "chmod +x bridge/*.sh && ./bridge/install-protocol.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
@@ -18,9 +20,12 @@
     "@types/node": "^20.11.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/ws": "^8.5.0",
     "autoprefixer": "^10.4.0",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5.3.0"
+    "ts-node": "^10.9.0",
+    "typescript": "^5.3.0",
+    "ws": "^8.16.0"
   }
 }
