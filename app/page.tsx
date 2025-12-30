@@ -3,17 +3,21 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase, type Project, type Task } from '@/lib/supabase'
+import { ProjectCard } from '@/components/ProjectCard'
+import { type LocalProject } from '@/lib/registry'
 
 export default function Palace() {
-  const [view, setView] = useState<'entry' | string>('entry')
+  const [view, setView] = useState<'entry' | 'local' | string>('entry')
   const [projects, setProjects] = useState<Project[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  const [localProjects, setLocalProjects] = useState<LocalProject[]>([])
   const [time, setTime] = useState('')
   const [selectedTask, setSelectedTask] = useState('')
   const [spinning, setSpinning] = useState(false)
 
   useEffect(() => {
     loadData()
+    loadLocalProjects()
     updateTime()
     const interval = setInterval(updateTime, 60000)
     return () => clearInterval(interval)
@@ -32,6 +36,16 @@ export default function Palace() {
     
     if (projectsResult.data) setProjects(projectsResult.data)
     if (tasksResult.data) setTasks(tasksResult.data)
+  }
+
+  async function loadLocalProjects() {
+    try {
+      const res = await fetch('/api/local/projects')
+      const data = await res.json()
+      if (data.projects) setLocalProjects(data.projects)
+    } catch (err) {
+      console.error('Failed to load local projects:', err)
+    }
   }
 
   function spinWheel() {
@@ -53,11 +67,26 @@ export default function Palace() {
     { id: 'vault', name: 'The Vault', icon: '💰' }
   ]
 
+  if (view === 'local') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] p-8">
+        <button onClick={() => setView('entry')} className="text-white mb-8 hover:text-[#d4af37] transition">← Back to Palace</button>
+        <h1 className="text-5xl font-bold text-white mb-2">Local Ecosystem</h1>
+        <p className="text-white/50 mb-8">Virtual Linkage to ~/Desktop projects</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {localProjects.map(p => (
+            <ProjectCard key={p.id} project={p} />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   if (view !== 'entry') {
     const roomProjects = projects.filter(p => p.room === view)
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] p-8">
-        <button onClick={() => setView('entry')} className="text-white mb-8">← Back</button>
+        <button onClick={() => setView('entry')} className="text-white mb-8 hover:text-[#d4af37] transition">← Back</button>
         <h1 className="text-5xl font-bold text-white mb-8">{rooms.find(r => r.id === view)?.name}</h1>
         <div className="space-y-4">
           {roomProjects.map(p => (
@@ -112,6 +141,23 @@ export default function Palace() {
               <h3 className="text-xl font-semibold text-white">{room.name}</h3>
             </button>
           ))}
+        </div>
+
+        <div className="mt-12 pt-8 border-t border-white/10">
+          <h2 className="text-2xl font-semibold text-white mb-6">Local Ecosystem</h2>
+          <button 
+            onClick={() => setView('local')} 
+            className="w-full bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-2xl p-6 text-left hover:border-emerald-400/40 transition group"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-4xl mb-3">🖥️</div>
+                <h3 className="text-xl font-semibold text-white">Desktop Projects</h3>
+                <p className="text-white/50 text-sm mt-1">{localProjects.length} projects indexed via Virtual Linkage</p>
+              </div>
+              <div className="text-emerald-400 group-hover:translate-x-1 transition-transform">→</div>
+            </div>
+          </button>
         </div>
       </div>
     </div>
