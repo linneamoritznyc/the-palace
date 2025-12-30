@@ -1,203 +1,105 @@
 #!/usr/bin/env npx ts-node
-/**
- * THE PALACE - LOCAL SIDECAR BRIDGE
- * WebSocket server that allows the Vercel frontend to execute local commands
- * 
- * Run with: npx ts-node bridge/server.ts
- * Or: npm run bridge
- */
 
-import { createServer } from 'http'
-import { WebSocketServer, WebSocket } from 'ws'
-import { exec, spawn } from 'child_process'
-import { promisify } from 'util'
-import * as crypto from 'crypto'
-import * as fs from 'fs'
+import { exec } from 'child_process'
+import { existsSync } from 'fs'
 import * as path from 'path'
+import { WebSocketServer } from 'ws'
 
-const execAsync = promisify(exec)
+const PORT = 8080
+const AUTH_TOKEN = 'palace_secret_123'
 
-const PORT = 9999
-const BRIDGE_SECRET = process.env.PALACE_BRIDGE_SECRET || crypto.randomBytes(32).toString('hex')
+type CommandType = 'LAUNCH' | 'PULSE' | 'TERMINAL'
 
-interface BridgeCommand {
+type CockpitRequest = {
   id: string
-  action: 'launch' | 'pulse' | 'terminal' | 'open' | 'exec'
+  token: string
+  type: CommandType
   path: string
-  token?: string
 }
 
-interface BridgeResponse {
+type CockpitResponse = {
   id: string
-  success: boolean
+  ok: boolean
   data?: unknown
   error?: string
 }
 
-const allowedPaths = [
-  '/Users/bashar/Desktop'
-]
+const allowedRoots = ['/Users/bashar/Desktop']
 
-function isPathAllowed(targetPath: string): boolean {
+function isAllowed(targetPath: string) {
   const normalized = path.normalize(targetPath)
-  return allowedPaths.some(allowed => normalized.startsWith(allowed))
+  return allowedRoots.some(root => normalized.startsWith(root))
 }
 
-async function handleCommand(cmd: BridgeCommand): Promise<BridgeResponse> {
-  const response: BridgeResponse = { id: cmd.id, success: false }
+function execAsync(command: string, cwd?: string): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    exec(command, { cwd }, (err, stdout, stderr) => {
+      if (err) reject(err)
+      else resolve({ stdout, stderr })
+    })
+  })
+}
 
-  if (!isPathAllowed(cmd.path)) {
-    response.error = `Path not allowed: ${cmd.path}`
-    return response
+async function handle(req: CockpitRequest): Promise<CockpitResponse> {
+  if (req.token !== AUTH_TOKEN) {
+    return { id: req.id, ok: false, error: 'Unauthorized' }
   }
 
-  if (!fs.existsSync(cmd.path)) {
-    response.error = `Path does not exist: ${cmd.path}`
-    return response
+  if (!isAllowed(req.path)) {
+    return { id: req.id, ok: false, error: 'Path not allowed' }
+  }
+
+  if (!existsSync(req.path)) {
+    return { id: req.id, ok: false, error: 'Path not found' }
   }
 
   try {
-    switch (cmd.action) {
-      case 'launch':
-        // Open in Windsurf (VS Code fork)
-        await execAsync(`code "${cmd.path}"`)
-        response.success = true
-        response.data = { message: `Opened ${cmd.path} in Windsurf` }
-        break
-
-      case 'pulse':
-        // Git status check
-        try {
-          const { stdout: status } = await execAsync(`git status --porcelain`, { cwd: cmd.path })
-          const { stdout: branch } = await execAsync(`git branch --show-current`, { cwd: cmd.path })
-          const { stdout: lastCommit } = await execAsync(`git log -1 --format="%h %s" 2>/dev/null || echo "No commits"`, { cwd: cmd.path })
-          
-          const changes = status.trim().split('\n').filter(Boolean)
-          response.success = true
-          response.data = {
-            branch: branch.trim(),
-            lastCommit: lastCommit.trim(),
-            hasChanges: changes.length > 0,
-            changeCount: changes.length,
-            changes: changes.slice(0, 10), // Limit to 10 for display
-          }
-        } catch {
-          response.success = true
-          response.data = { hasGit: false, message: 'Not a git repository' }
-        }
-        break
-
-      case 'terminal':
-        // Open Terminal at path
-        await execAsync(`open -a Terminal "${cmd.path}"`)
-        response.success = true
-        response.data = { message: `Opened Terminal at ${cmd.path}` }
-        break
-
-      case 'open':
-        // Open in Finder
-        await execAsync(`open "${cmd.path}"`)
-        response.success = true
-        response.data = { message: `Opened ${cmd.path} in Finder` }
-        break
-
-      case 'exec':
-        // Generic command execution (more restricted)
-        response.error = 'Generic exec not implemented for security'
-        break
-
-      default:
-        response.error = `Unknown action: ${cmd.action}`
+    if (req.type === 'LAUNCH') {
+      await execAsync(`windsurf "${req.path}"`)
+      return { id: req.id, ok: true, data: { message: 'Launched in Windsurf' } }
     }
-  } catch (err) {
-    response.error = err instanceof Error ? err.message : 'Unknown error'
-  }
 
-  return response
+    if (req.type === 'PULSE') {
+      const { stdout } = await execAsync('git status --porcelain', req.path)
+      const changes = stdout.trim().split('\n').filter(Boolean)
+      return {
+        id: req.id,
+        ok: true,
+        data: {
+          hasChanges: changes.length > 0,
+          changeCount: changes.length,
+          changes: changes.slice(0, 50),
+        },
+      }
+    }
+
+    if (req.type === 'TERMINAL') {
+      await execAsync(`open -a Terminal "${req.path}"`)
+      return { id: req.id, ok: true, data: { message: 'Opened Terminal' } }
+    }
+
+    return { id: req.id, ok: false, error: 'Unknown command' }
+  } catch (err) {
+    return { id: req.id, ok: false, error: err instanceof Error ? err.message : 'Command failed' }
+  }
 }
 
-// HTTP server for health checks and CORS preflight
-const httpServer = createServer((req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+const wss = new WebSocketServer({ port: PORT })
 
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204)
-    res.end()
-    return
-  }
-
-  if (req.url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify({ 
-      status: 'ok', 
-      bridge: 'palace-sidecar',
-      version: '1.0.0',
-      secret: BRIDGE_SECRET.slice(0, 8) + '...' // Show partial for verification
-    }))
-    return
-  }
-
-  if (req.url === '/secret') {
-    res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify({ secret: BRIDGE_SECRET }))
-    return
-  }
-
-  res.writeHead(404)
-  res.end('Not found')
-})
-
-// WebSocket server
-const wss = new WebSocketServer({ server: httpServer })
-
-wss.on('connection', (ws: WebSocket) => {
-  console.log('🏰 Palace Bridge: Client connected')
-
-  ws.on('message', async (data: Buffer) => {
+wss.on('connection', (ws) => {
+  ws.on('message', async (data) => {
+    let req: CockpitRequest | null = null
     try {
-      const cmd: BridgeCommand = JSON.parse(data.toString())
-      console.log(`📡 Command received: ${cmd.action} -> ${cmd.path}`)
-      
-      const response = await handleCommand(cmd)
-      ws.send(JSON.stringify(response))
-      
-      console.log(`✅ Response sent: ${response.success ? 'SUCCESS' : 'FAILED'}`)
-    } catch (err) {
-      const errorResponse: BridgeResponse = {
-        id: 'error',
-        success: false,
-        error: err instanceof Error ? err.message : 'Parse error'
-      }
-      ws.send(JSON.stringify(errorResponse))
+      req = JSON.parse(data.toString()) as CockpitRequest
+    } catch {
+      const res: CockpitResponse = { id: 'error', ok: false, error: 'Invalid JSON' }
+      ws.send(JSON.stringify(res))
+      return
     }
-  })
 
-  ws.on('close', () => {
-    console.log('🏰 Palace Bridge: Client disconnected')
+    const res = await handle(req)
+    ws.send(JSON.stringify(res))
   })
 })
 
-httpServer.listen(PORT, () => {
-  console.log(`
-╔════════════════════════════════════════════════════════════╗
-║                                                            ║
-║   🏰 THE PALACE - LOCAL SIDECAR BRIDGE                     ║
-║                                                            ║
-║   Status:    ONLINE                                        ║
-║   Port:      ${PORT}                                          ║
-║   WebSocket: ws://localhost:${PORT}                           ║
-║   Health:    http://localhost:${PORT}/health                  ║
-║                                                            ║
-║   Bridge Secret (first 8 chars): ${BRIDGE_SECRET.slice(0, 8)}                 ║
-║                                                            ║
-║   Commands:                                                ║
-║   • launch   - Open folder in Windsurf                     ║
-║   • pulse    - Get git status                              ║
-║   • terminal - Open Terminal at path                       ║
-║   • open     - Open in Finder                              ║
-║                                                            ║
-╚════════════════════════════════════════════════════════════╝
-  `)
-})
+console.log(`Palace Cockpit Bridge listening on ws://localhost:${PORT}`)

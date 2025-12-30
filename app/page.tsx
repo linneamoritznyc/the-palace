@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { supabase, type Project, type Task } from '@/lib/supabase'
 import { ProjectCard } from '@/components/ProjectCard'
 import { type LocalProject } from '@/lib/registry'
+import { useCockpit } from '@/hooks/useCockpit'
 
 export default function Palace() {
   const [view, setView] = useState<'entry' | 'local' | string>('entry')
@@ -14,6 +15,8 @@ export default function Palace() {
   const [time, setTime] = useState('')
   const [selectedTask, setSelectedTask] = useState('')
   const [spinning, setSpinning] = useState(false)
+
+  const { isLocalConnected } = useCockpit()
 
   useEffect(() => {
     loadData()
@@ -71,7 +74,13 @@ export default function Palace() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] p-8">
         <button onClick={() => setView('entry')} className="text-white mb-8 hover:text-[#d4af37] transition">← Back to Palace</button>
-        <h1 className="text-5xl font-bold text-white mb-2">Local Ecosystem</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-5xl font-bold text-white">Local Ecosystem</h1>
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isLocalConnected ? 'bg-emerald-400' : 'bg-red-400'}`} />
+            <span className="text-xs text-white/50">System Link</span>
+          </div>
+        </div>
         <p className="text-white/50 mb-8">Virtual Linkage to ~/Desktop projects</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {localProjects.map(p => (
