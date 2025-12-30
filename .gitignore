@@ -1,4 +1,5 @@
 node_modules
+.windsurf/
 .next
 .env*.local
 .vercel
