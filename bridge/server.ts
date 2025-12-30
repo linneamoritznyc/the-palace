@@ -84,7 +84,7 @@ async function handle(req: CockpitRequest): Promise<CockpitResponse> {
   }
 }
 
-const wss = new WebSocketServer({ port: PORT })
+const wss = new WebSocketServer({ port: PORT, host: '127.0.0.1' })
 
 wss.on('connection', (ws) => {
   ws.on('message', async (data) => {
@@ -102,4 +102,4 @@ wss.on('connection', (ws) => {
   })
 })
 
-console.log(`Palace Cockpit Bridge listening on ws://localhost:${PORT}`)
+console.log(`Palace Cockpit Bridge listening on ws://127.0.0.1:${PORT}`)

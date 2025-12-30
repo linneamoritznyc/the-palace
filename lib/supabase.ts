@@ -1,9 +1,20 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://nfiahyxnhqvvvgseoxri.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5maWFoeXhuaHF2dnZnc2VveHJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwMzMyNjgsImV4cCI6MjA4MjYwOTI2OH0.7VkRlLUh1FlMfXxFHbNk8_WZL_JO8nrKvy7nAuMglEo'
+let _supabase: ReturnType<typeof createClient> | null = null
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export function getSupabaseClient() {
+  if (_supabase) return _supabase
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase env missing: set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local')
+  }
+
+  _supabase = createClient(supabaseUrl, supabaseAnonKey)
+  return _supabase
+}
 
 export type Project = {
   id: string

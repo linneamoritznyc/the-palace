@@ -1,0 +1,9 @@
+{
+  "name": "The Palace",
+  "short_name": "Palace",
+  "start_url": "http://localhost:3000/",
+  "scope": "http://localhost:3000/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a"
+}

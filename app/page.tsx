@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { supabase, type Project, type Task } from '@/lib/supabase'
+import { getSupabaseClient, type Project, type Task } from '@/lib/supabase'
 import { ProjectCard } from '@/components/ProjectCard'
 import { type LocalProject } from '@/lib/registry'
 import { useCockpit } from '@/hooks/useCockpit'
@@ -32,6 +32,7 @@ export default function Palace() {
   }
 
   async function loadData() {
+    const supabase = getSupabaseClient()
     const [projectsResult, tasksResult] = await Promise.all([
       supabase.from('projects').select('*').eq('status', 'active').order('priority_score', { ascending: false }),
       supabase.from('tasks').select('*').eq('completed', false).limit(10)
@@ -81,6 +82,12 @@ export default function Palace() {
             <span className="text-xs text-white/50">System Link</span>
           </div>
         </div>
+        {!isLocalConnected && (
+          <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4">
+            <div className="text-sm font-semibold text-red-200">Fortress Offline</div>
+            <div className="text-xs text-red-200/70 mt-1">Start the local bridge with <span className="font-mono">npm run bridge</span> to enable Launch / Pulse / Terminal.</div>
+          </div>
+        )}
         <p className="text-white/50 mb-8">Virtual Linkage to ~/Desktop projects</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {localProjects.map(p => (

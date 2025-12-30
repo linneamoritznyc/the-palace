@@ -63,9 +63,7 @@ export function useCockpit() {
 
   useEffect(() => {
     connect()
-    const interval = setInterval(connect, 2500)
     return () => {
-      clearInterval(interval)
       wsRef.current?.close()
       wsRef.current = null
       pendingRef.current.clear()

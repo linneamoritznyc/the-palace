@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "bridge": "npx ts-node bridge/server.ts & npx localtunnel --port 8080",
+    "bridge": "npx ts-node bridge/server.ts",
     "bridge:install": "chmod +x scripts/setup-protocol.sh && ./scripts/setup-protocol.sh"
   },
   "dependencies": {
@@ -22,7 +22,6 @@
     "@types/react-dom": "^19.0.0",
     "@types/ws": "^8.5.0",
     "autoprefixer": "^10.4.0",
-    "localtunnel": "^2.0.2",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
     "ts-node": "^10.9.0",
